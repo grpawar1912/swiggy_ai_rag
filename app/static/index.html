@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Swiggy Annual Report QA</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <div class="header-left">
+                <strong>Tech Stack:</strong><br>
+                Python, FastAPI, LangChain, FAISS, Gemini AI
+            </div>
+            <div class="header-center">
+                <h1>Swiggy RAG Assistant</h1>
+                <p>Ask questions about the Swiggy Annual Report</p>
+            </div>
+            <div class="header-right">
+                Developed by: <strong>Gayatri Pawar</strong><br>
+                Contact: <a href="mailto:grpawar.gp@gmail.com">grpawar.gp@gmail.com</a>
+            </div>
+        </header>
+
+        <main>
+            <div id="chat-container">
+                <div id="messages">
+                    <div class="message system-message">
+                        Hello! I am ready to answer your questions based exclusively on the Swiggy Annual Report. What
+                        would you like to know?
+                    </div>
+                </div>
+                <!-- Loading indicator -->
+                <div id="loading" class="hidden">
+                    <div class="spinner"></div> Thinking...
+                </div>
+            </div>
+
+            <div class="suggested-questions">
+                <span class="sq-label">Suggested:</span>
+                <button class="sq-btn"
+                    onclick="document.getElementById('query-input').value=this.innerText; handleSend();">What was the
+                    total GOV growth in 2024?</button>
+                <button class="sq-btn"
+                    onclick="document.getElementById('query-input').value=this.innerText; handleSend();">How many users
+                    transacted on Swiggy?</button>
+                <button class="sq-btn"
+                    onclick="document.getElementById('query-input').value=this.innerText; handleSend();">What is
+                    Swiggy's strategy for Instamart?</button>
+            </div>
+
+            <div class="input-area">
+                <input type="text" id="query-input" placeholder="e.g., What was the total revenue growth?"
+                    autocomplete="off" />
+                <button id="send-btn">Ask</button>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const chatMessages = document.getElementById('messages');
+        const queryInput = document.getElementById('query-input');
+        const sendBtn = document.getElementById('send-btn');
+        const loadingDiv = document.getElementById('loading');
+
+        function addMessage(text, isUser = false, sources = null) {
+            const msgDiv = document.createElement('div');
+            msgDiv.className = `message ${isUser ? 'user-message' : 'system-message'}`;
+            msgDiv.textContent = text;
+            chatMessages.appendChild(msgDiv);
+
+            if (sources && sources.length > 0) {
+                const sourcesDiv = document.createElement('div');
+                sourcesDiv.className = 'sources';
+                let sourcesHtml = '<strong>Sources:</strong><ul>';
+                sources.forEach((src, idx) => {
+                    sourcesHtml += `<li>Page ${src.page} (Source ${idx + 1})</li>`;
+                });
+                sourcesHtml += '</ul>';
+                sourcesDiv.innerHTML = sourcesHtml;
+                chatMessages.appendChild(sourcesDiv);
+            }
+
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        async function handleSend() {
+            const query = queryInput.value.trim();
+            if (!query) return;
+
+            addMessage(query, true);
+            queryInput.value = '';
+            loadingDiv.classList.remove('hidden');
+            sendBtn.disabled = true;
+
+            try {
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ query: query })
+                });
+
+                if (!response.ok) {
+                    const errorDate = await response.json();
+                    throw new Error(errorDate.detail || 'Failed to fetch response');
+                }
+
+                const data = await response.json();
+                addMessage(data.answer, false, data.sources);
+            } catch (error) {
+                console.error("Error:", error);
+                addMessage(`Error: ${error.message}`, false);
+            } finally {
+                loadingDiv.classList.add('hidden');
+                sendBtn.disabled = false;
+                queryInput.focus();
+            }
+        }
+
+        sendBtn.addEventListener('click', handleSend);
+        queryInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') handleSend();
+        });
+    </script>
+</body>
+
+</html>
