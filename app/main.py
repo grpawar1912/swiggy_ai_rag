@@ -21,15 +21,18 @@ class QueryResponse(BaseModel):
     answer: str
     sources: list[SourceDoc]
 
-# Create static directory if it doesn't exist
-os.makedirs("app/static", exist_ok=True)
-app.mount("/static", StaticFiles(directory="app/static"), name="static")
+# Get absolute path for static directory
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+STATIC_DIR = os.path.join(BASE_DIR, "static")
+INDEX_PATH = os.path.join(STATIC_DIR, "index.html")
+
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 @app.get("/")
 async def read_index():
-    if os.path.exists("app/static/index.html"):
-        return FileResponse("app/static/index.html")
-    return {"message": "Index file not found. Ensure app/static/index.html exists."}
+    if os.path.exists(INDEX_PATH):
+        return FileResponse(INDEX_PATH)
+    return {"message": f"Index file not found at {INDEX_PATH}"}
 
 @app.post("/api/chat", response_model=QueryResponse)
 async def chat_endpoint(request: QueryRequest):
