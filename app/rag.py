@@ -8,7 +8,10 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-VECTOR_STORE_PATH = "faiss_index"
+# Determine absolute paths
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+# VECTOR_STORE_PATH is at the root, which is one level up from this file (app/rag.py)
+VECTOR_STORE_PATH = os.path.join(os.path.dirname(BASE_DIR), "faiss_index")
 
 # Global references to avoid reloading continuously
 _embeddings = None
@@ -20,18 +23,32 @@ def get_rag_chain():
     global _embeddings, _vectorstore, _retriever, _llm
     
     if _llm is None:
-        if not os.path.exists(VECTOR_STORE_PATH):
-            raise RuntimeError(f"FAISS index not found at {VECTOR_STORE_PATH}. Please run ingest.py first.")
+        print(f"--- Initializing RAG components from {VECTOR_STORE_PATH} ---")
+        try:
+            if not os.path.exists(VECTOR_STORE_PATH):
+                print(f"ERROR: FAISS index not found at {VECTOR_STORE_PATH}")
+                # List files in parent to help debug
+                parent_dir = os.path.dirname(VECTOR_STORE_PATH)
+                if os.path.exists(parent_dir):
+                    print(f"Parent directory ({parent_dir}) contents: {os.listdir(parent_dir)}")
+                raise RuntimeError(f"FAISS index not found at {VECTOR_STORE_PATH}. Please run ingest.py first.")
 
-        # Initialize Embeddings & Vectorstore
-        _embeddings = GoogleGenerativeAIEmbeddings(model="models/gemini-embedding-001")
-        _vectorstore = FAISS.load_local(VECTOR_STORE_PATH, _embeddings, allow_dangerous_deserialization=True)
-        
-        # We retrieve top 4 contexts
-        _retriever = _vectorstore.as_retriever(search_kwargs={"k": 4})
+            # Initialize Embeddings & Vectorstore
+            print("Loading Embeddings...")
+            _embeddings = GoogleGenerativeAIEmbeddings(model="models/gemini-embedding-001")
+            print("Loading FAISS Index...")
+            _vectorstore = FAISS.load_local(VECTOR_STORE_PATH, _embeddings, allow_dangerous_deserialization=True)
+            
+            # We retrieve top 4 contexts
+            _retriever = _vectorstore.as_retriever(search_kwargs={"k": 4})
 
-        # Initialize LLM
-        _llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0.1)
+            # Initialize LLM
+            print("Initializing Gemini LLM (gemini-2.5-flash)...")
+            _llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0.1)
+            print("RAG components ready.")
+        except Exception as e:
+            print(f"CRITICAL ERROR during RAG initialization: {e}")
+            raise e
 
     template = """You are an AI assistant built to answer questions based ONLY on the Swiggy Annual Report.
 Use the following pieces of retrieved context to answer the question.

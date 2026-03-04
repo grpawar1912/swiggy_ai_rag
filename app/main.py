@@ -34,6 +34,10 @@ async def read_index():
         return FileResponse(INDEX_PATH)
     return {"message": f"Index file not found at {INDEX_PATH}"}
 
+@app.get("/health")
+async def health_check():
+    return {"status": "ok"}
+
 @app.post("/api/chat", response_model=QueryResponse)
 async def chat_endpoint(request: QueryRequest):
     try:
